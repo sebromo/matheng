@@ -31,6 +31,42 @@ test("an authenticated user edits, saves, and reopens a calculation worksheet", 
   });
 });
 
+test("assignment definitions render inline with their math expressions", async ({
+  page,
+}) => {
+  await register(page);
+  const assignment = page
+    .locator(".worksheet-region.math-region")
+    .filter({ has: page.locator(".definition-input.has-definition") })
+    .first();
+  await expect(assignment.locator(".definition-input input")).toHaveValue(
+    "load",
+  );
+  await expect(assignment.locator(".definition-operator")).toHaveText(":=");
+
+  const definitionBox = await assignment
+    .locator(".definition-input")
+    .boundingBox();
+  const expressionBox = await assignment
+    .locator(".mathlive-host math-field")
+    .boundingBox();
+  const resultBox = await assignment.locator(".inline-result").boundingBox();
+  expect(definitionBox).not.toBeNull();
+  expect(expressionBox).not.toBeNull();
+  expect(resultBox).not.toBeNull();
+  if (!definitionBox || !expressionBox || !resultBox) return;
+
+  const expressionCenter = expressionBox.y + expressionBox.height / 2;
+  expect(
+    Math.abs(definitionBox.y + definitionBox.height / 2 - expressionCenter),
+  ).toBeLessThan(1);
+  expect(
+    Math.abs(resultBox.y + resultBox.height / 2 - expressionCenter),
+  ).toBeLessThan(1);
+  expect(definitionBox.x + definitionBox.width).toBeLessThan(expressionBox.x);
+  expect(expressionBox.x + expressionBox.width).toBeLessThan(resultBox.x);
+});
+
 test("the math toolbox inserts into the active MathLive field", async ({
   page,
 }) => {
@@ -197,6 +233,55 @@ test("blank math regions disappear on blur, including after clearing input", asy
   await expect(fields).toHaveCount(3);
 });
 
+test("typing an assignment delimiter converts one math field into a definition", async ({
+  page,
+}) => {
+  await register(page);
+  const pageBox = await page.locator(".worksheet-page").boundingBox();
+  expect(pageBox).not.toBeNull();
+  if (!pageBox) return;
+
+  await page.mouse.click(pageBox.x + 620, pageBox.y + 500);
+  const field = page.locator("math-field").last();
+  await expect(field).toBeFocused();
+  await field.pressSequentially("y1:=5");
+
+  const region = field.locator(
+    "xpath=ancestor::div[contains(@class,'math-region')]",
+  );
+  await expect(region.locator(".definition-input input")).toHaveValue("y1");
+  await expect(region.locator(".inline-result")).toHaveText("5");
+  await expect
+    .poll(() =>
+      field.evaluate((element) =>
+        (
+          element as HTMLElement & { getValue(format: string): string }
+        ).getValue("ascii-math"),
+      ),
+    )
+    .toBe("5");
+  await expect
+    .poll(async () => {
+      const record = (await worksheetRecords(page))[0];
+      return record?.document.regions.some(
+        (worksheetRegion) =>
+          worksheetRegion.type === "math" &&
+          worksheetRegion.content.kind === "assignment" &&
+          worksheetRegion.content.name === "y1" &&
+          worksheetRegion.content.expression.kind === "number" &&
+          worksheetRegion.content.expression.value === 5,
+      );
+    })
+    .toBe(true);
+
+  await page.reload();
+  const persistedRegion = page.locator(".worksheet-region.math-region").last();
+  await expect(persistedRegion.locator(".definition-input input")).toHaveValue(
+    "y1",
+  );
+  await expect(persistedRegion.locator(".inline-result")).toHaveText("5");
+});
+
 test("loading a worksheet removes previously persisted empty math regions", async ({
   page,
 }) => {
@@ -280,6 +365,7 @@ test("math fields align to the click point and the toolbox owns the virtual keyb
 
   const field = page.locator("math-field").nth(3);
   await expect(field).toBeFocused();
+  await expect(page.locator(".definition-input")).toHaveCount(3);
   const initialBox = await field.boundingBox();
   expect(initialBox).not.toBeNull();
   if (!initialBox) return;
@@ -295,15 +381,21 @@ test("math fields align to the click point and the toolbox owns the virtual keyb
   await expect(keyboardButton).toHaveAttribute("aria-pressed", "true");
   await expect(menuButton).toBeEnabled();
   const menuPanel = toolbox.getByRole("region", { name: "Math editing menu" });
+  const insertMatrixMenu = menuPanel.getByRole("button", {
+    name: "Insert Matrix",
+  });
+  await expect(insertMatrixMenu).toBeVisible();
+  await expect(menuPanel.getByRole("button", { name: "Insert" })).toBeVisible();
+  await expect(menuPanel.getByRole("button", { name: "Mode" })).toBeVisible();
   await expect(
-    menuPanel.getByText("Insert Matrix", { exact: true }),
+    menuPanel.getByRole("button", { name: "Font Style" }),
   ).toBeVisible();
-  await expect(menuPanel.getByText("Insert", { exact: true })).toBeVisible();
-  await expect(menuPanel.getByText("Mode", { exact: true })).toBeVisible();
-  await expect(
-    menuPanel.getByText("Font Style", { exact: true }),
-  ).toBeVisible();
-  await expect(menuPanel.getByText("Color", { exact: true })).toBeVisible();
+  await expect(menuPanel.getByRole("button", { name: "Color" })).toBeVisible();
+  await expect(menuPanel.getByRole("button", { name: /Add Row/ })).toHaveCount(
+    0,
+  );
+  await expect(menuPanel.getByRole("button", { name: "1 x 1" })).toHaveCount(0);
+  await insertMatrixMenu.hover();
   await expect(menuPanel.getByRole("button", { name: "1 x 1" })).toBeVisible();
   await expect(regionActions.getByRole("button")).toHaveCount(4);
   await expect(
@@ -327,6 +419,119 @@ test("math fields align to the click point and the toolbox owns the virtual keyb
   expect(keyboardBox.y + keyboardBox.height).toBeLessThanOrEqual(
     hostBox.y + hostBox.height + 1,
   );
+
+  const layoutIds = await keyboard.evaluate((element) => {
+    const selectedLayerId = element.querySelector(".MLK__layer.is-visible")?.id;
+    return [...element.querySelectorAll(".MLK__toolbar .left > div")].map(
+      (tab) => ({
+        label: tab.getAttribute("data-tooltip") ?? tab.textContent?.trim(),
+        layerId: tab.getAttribute("data-layer") ?? selectedLayerId,
+      }),
+    );
+  });
+  expect(layoutIds).toHaveLength(4);
+  const shiftWidths: number[] = [];
+  for (const { label, layerId } of layoutIds) {
+    expect(layerId, `${label} layer`).toBeTruthy();
+    if (!layerId) continue;
+
+    await page.evaluate((id) => {
+      const virtualKeyboard =
+        window.mathVirtualKeyboard as typeof window.mathVirtualKeyboard & {
+          currentLayer: string;
+        };
+      virtualKeyboard.currentLayer = id;
+    }, layerId);
+    const layoutMetrics = await keyboard.evaluate((element) => {
+      const layer = element.querySelector(".MLK__layer.is-visible");
+      if (!layer) throw new Error("No active MathLive keyboard layer");
+      const isVisible = (key: Element) => key.getBoundingClientRect().width > 0;
+      const keycaps = [...layer.querySelectorAll(".MLK__keycap")].filter(
+        isVisible,
+      );
+      const shifts = [...layer.querySelectorAll(".shift")].filter(isVisible);
+      const normalKeyWidth =
+        keycaps
+          .find((key) => !key.classList.contains("shift"))
+          ?.getBoundingClientRect().width ?? 0;
+      const overflowingKeycaps = keycaps
+        .filter((key) => key.scrollWidth > key.clientWidth + 1)
+        .map((key) => key.getAttribute("aria-label"));
+      const offCenterIcons = [
+        ...layer.querySelectorAll(".action, .shift"),
+      ].some((key) => {
+        if (!isVisible(key)) return false;
+        const keyBox = key.getBoundingClientRect();
+        const icon = key.querySelector("svg")?.getBoundingClientRect();
+        return (
+          !icon ||
+          icon.width > keyBox.width + 1 ||
+          icon.height > keyBox.height + 1 ||
+          Math.abs(
+            icon.left + icon.width / 2 - (keyBox.left + keyBox.width / 2),
+          ) > 1 ||
+          Math.abs(
+            icon.top + icon.height / 2 - (keyBox.top + keyBox.height / 2),
+          ) > 1
+        );
+      });
+
+      return {
+        overflowingKeycaps,
+        shiftWidths: shifts.map((key) => key.getBoundingClientRect().width),
+        normalKeyWidth,
+        offCenterIcons,
+      };
+    });
+
+    expect(layoutMetrics.overflowingKeycaps, `${label} keycaps`).toEqual([]);
+    shiftWidths.push(...layoutMetrics.shiftWidths);
+    expect(
+      layoutMetrics.shiftWidths.length,
+      `${label} Shift keys`,
+    ).toBeGreaterThan(0);
+    expect(
+      layoutMetrics.shiftWidths.every(
+        (width) => width >= layoutMetrics.normalKeyWidth * 1.4,
+      ),
+      `${label} Shift width`,
+    ).toBe(true);
+    expect(layoutMetrics.offCenterIcons, `${label} action icons`).toBe(false);
+  }
+  expect(Math.max(...shiftWidths) - Math.min(...shiftWidths)).toBeLessThan(1);
+
+  const numericLayerId = layoutIds.find(
+    ({ label }) => label === "Numeric",
+  )?.layerId;
+  expect(numericLayerId).toBeTruthy();
+  if (numericLayerId) {
+    await page.evaluate((id) => {
+      const virtualKeyboard =
+        window.mathVirtualKeyboard as typeof window.mathVirtualKeyboard & {
+          currentLayer: string;
+        };
+      virtualKeyboard.currentLayer = id;
+    }, numericLayerId);
+    const numericRowAlignment = await keyboard.evaluate((element) => {
+      const rows = [
+        ...element.querySelectorAll(".MLK__layer.is-visible .MLK__row"),
+      ];
+      const x = (selector: string, root: Element) =>
+        root.querySelector(selector)?.getBoundingClientRect().x ?? NaN;
+      return {
+        zero: x('.MLK__keycap[aria-label="0"]', rows.at(-1)!),
+        one: x('.MLK__keycap[aria-label="1"]', element),
+        enter: x(".action:last-child", rows.at(-1)!),
+        backspace: x(".action:last-child", rows.at(-2)!),
+      };
+    });
+    expect(
+      Math.abs(numericRowAlignment.zero - numericRowAlignment.one),
+    ).toBeLessThan(1);
+    expect(
+      Math.abs(numericRowAlignment.enter - numericRowAlignment.backspace),
+    ).toBeLessThan(1);
+  }
 
   await keyboardButton.click();
   await expect(keyboardButton).toHaveAttribute("aria-pressed", "false");

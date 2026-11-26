@@ -40,4 +40,33 @@ describe("MathLive adapter", () => {
     expect(adapter.expressionFromEditorValue("")).toEqual({ kind: "empty" });
     expect(adapter.expressionToEditorValue({ kind: "empty" })).toBe("");
   });
+
+  it("recognizes assignments only after an assignment delimiter is entered", () => {
+    expect(adapter.statementFromEditorValue("y1", true)).toBeNull();
+    expect(adapter.statementFromEditorValue("y1")).toEqual({
+      kind: "expression",
+      expression: { kind: "identifier", name: "y1" },
+    });
+    expect(adapter.statementFromEditorValue("y1:=")).toEqual({
+      kind: "assignment",
+      name: "y1",
+      expression: { kind: "empty" },
+    });
+    expect(adapter.statementFromEditorValue("y1:=5")).toEqual({
+      kind: "assignment",
+      name: "y1",
+      expression: { kind: "number", value: 5 },
+    });
+    expect(adapter.statementFromEditorValue("y1 : 5")).toEqual({
+      kind: "assignment",
+      name: "y1",
+      expression: { kind: "number", value: 5 },
+    });
+    expect(adapter.statementFromEditorValue("y1 : = 5")).toEqual({
+      kind: "assignment",
+      name: "y1",
+      expression: { kind: "number", value: 5 },
+    });
+    expect(adapter.statementFromEditorValue("y1:")).toBeNull();
+  });
 });

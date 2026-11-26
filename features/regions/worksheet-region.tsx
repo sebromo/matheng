@@ -66,6 +66,17 @@ export const WorksheetRegionView = memo(function WorksheetRegionView({
     onReplace({ ...region, content });
   }
 
+  function updateAssignment(
+    name: string,
+    expression: MathStatement["expression"],
+  ) {
+    if (region.type !== "math") return;
+    onReplace({
+      ...region,
+      content: { kind: "assignment", name, expression },
+    });
+  }
+
   return (
     <div
       className={className}
@@ -100,25 +111,25 @@ export const WorksheetRegionView = memo(function WorksheetRegionView({
       </button>
       {region.type === "math" ? (
         <>
-          <label
-            className={`definition-input ${region.content.kind === "assignment" ? "has-definition" : ""}`}
-          >
-            <span className="visually-hidden">Variable name</span>
-            <input
-              aria-label={`Variable definition ${index + 1}`}
-              value={
-                region.content.kind === "assignment" ? region.content.name : ""
-              }
-              onChange={(event) => updateDefinition(event.target.value)}
-              placeholder="x"
-            />
-            <span aria-hidden="true">
-              {region.content.kind === "assignment" ? ":=" : ""}
-            </span>
-          </label>
+          {region.content.kind === "assignment" && (
+            <label className="definition-input has-definition">
+              <span className="visually-hidden">Variable name</span>
+              <input
+                aria-label={`Variable definition ${index + 1}`}
+                value={region.content.name}
+                size={Math.max(1, region.content.name.length)}
+                onChange={(event) => updateDefinition(event.target.value)}
+              />
+              <span className="definition-operator" aria-hidden="true">
+                :=
+              </span>
+            </label>
+          )}
           <MathLiveEditor
             expression={region.content.expression}
+            deferBareIdentifier={region.content.kind !== "assignment"}
             onChange={updateMath}
+            onAssignment={updateAssignment}
             onFocus={onActivate}
             onRequestText={onRequestText}
             onReady={onMathEditorReady}

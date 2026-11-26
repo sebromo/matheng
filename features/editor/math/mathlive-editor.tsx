@@ -9,7 +9,9 @@ const adapter = new MathLiveAdapter();
 
 type Props = {
   expression: MathExpression;
+  deferBareIdentifier?: boolean;
   onChange(expression: MathExpression): void;
+  onAssignment(name: string, expression: MathExpression): void;
   onFocus(): void;
   onRequestText(): void;
   onReady(handle: MathEditorHandle | null): void;
@@ -17,7 +19,9 @@ type Props = {
 
 export function MathLiveEditor({
   expression,
+  deferBareIdentifier = false,
   onChange,
+  onAssignment,
   onFocus,
   onRequestText,
   onReady,
@@ -25,17 +29,25 @@ export function MathLiveEditor({
   const host = useRef<HTMLDivElement>(null);
   const currentCallbacks = useRef({
     onChange,
+    onAssignment,
     onFocus,
     onRequestText,
     onReady,
   });
   const currentExpression = useRef(expression);
   const initialExpression = useRef(expression);
+  const initialDeferBareIdentifier = useRef(deferBareIdentifier);
   const lastEmitted = useRef("");
   const [error, setError] = useState("");
   const serializedExpression = JSON.stringify(expression);
 
-  currentCallbacks.current = { onChange, onFocus, onRequestText, onReady };
+  currentCallbacks.current = {
+    onChange,
+    onAssignment,
+    onFocus,
+    onRequestText,
+    onReady,
+  };
   currentExpression.current = expression;
 
   useEffect(() => {
@@ -44,29 +56,43 @@ export function MathLiveEditor({
     let dispose: (() => void) | undefined;
 
     void adapter
-      .mount(host.current, initialExpression.current, {
-        onExpression(next) {
-          if (cancelled) return;
-          lastEmitted.current = JSON.stringify(next);
-          setError("");
-          currentCallbacks.current.onChange(next);
+      .mount(
+        host.current,
+        initialExpression.current,
+        {
+          onExpression(next) {
+            if (cancelled) return;
+            lastEmitted.current = JSON.stringify(next);
+            setError("");
+            currentCallbacks.current.onChange(next);
+          },
+          onAssignment(name, next) {
+            if (cancelled) return;
+            lastEmitted.current = JSON.stringify(next);
+            setError("");
+            currentCallbacks.current.onAssignment(name, next);
+          },
+          onPending() {
+            if (!cancelled) setError("");
+          },
+          onInvalid(message) {
+            if (!cancelled) setError(message);
+          },
+          onFocus() {
+            if (cancelled) return;
+            currentCallbacks.current.onFocus();
+          },
+          onRequestText() {
+            if (cancelled) return;
+            currentCallbacks.current.onRequestText();
+          },
+          onReady(handle) {
+            if (cancelled) return;
+            currentCallbacks.current.onReady(handle);
+          },
         },
-        onInvalid(message) {
-          if (!cancelled) setError(message);
-        },
-        onFocus() {
-          if (cancelled) return;
-          currentCallbacks.current.onFocus();
-        },
-        onRequestText() {
-          if (cancelled) return;
-          currentCallbacks.current.onRequestText();
-        },
-        onReady(handle) {
-          if (cancelled) return;
-          currentCallbacks.current.onReady(handle);
-        },
-      })
+        initialDeferBareIdentifier.current,
+      )
       .then((cleanup) => {
         if (cancelled) cleanup();
         else {

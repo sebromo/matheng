@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { FunctionSquare, Keyboard, Menu, Type } from "lucide-react";
+import {
+  ChevronDown,
+  FunctionSquare,
+  Keyboard,
+  Menu,
+  Type,
+} from "lucide-react";
 import type { MathMenuItem } from "../../editor/math/editor-port";
 
 type Props = {
@@ -31,6 +37,7 @@ type MenuDescriptor = {
   keyboardShortcut?: string;
   columnCount?: number;
   submenu?: readonly MathMenuItem[];
+  submenuClass?: string;
   onMenuSelect?: unknown;
 };
 
@@ -51,6 +58,7 @@ export function WorksheetToolbox({
   const menuPanel = useRef<HTMLElement>(null);
   const [keyboard, setKeyboard] = useState<Window["mathVirtualKeyboard"]>();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const visibleMenuItems = getVisibleMenuItems(menuItems);
 
   useEffect(() => {
     let cancelled = false;
@@ -147,8 +155,8 @@ export function WorksheetToolbox({
         ref={menuPanel}
       >
         <h2>Math editing</h2>
-        {menuItems.length > 0 ? (
-          menuItems.map((item, index) =>
+        {visibleMenuItems.length > 0 ? (
+          visibleMenuItems.map((item, index) =>
             renderMenuItem(item, index, onSelectMenuItem),
           )
         ) : (
@@ -163,9 +171,10 @@ function renderMenuItem(
   item: MathMenuItem,
   index: number,
   onSelectMenuItem: (item: MathMenuItem) => void,
+  parentKey = "",
 ): React.ReactNode {
   const descriptor = item as unknown as MenuDescriptor;
-  const key = descriptor.id ?? `menu-item-${index}`;
+  const key = `${parentKey}${descriptor.id ?? `menu-item-${index}`}`;
   const label = menuLabel(descriptor);
 
   if (descriptor.type === "divider")
@@ -181,21 +190,27 @@ function renderMenuItem(
   if (descriptor.submenu) {
     const columns = descriptor.columnCount;
     return (
-      <section className="math-menu-group" key={key}>
-        <h3>{label}</h3>
-        <div
-          className={`math-menu-items ${columns && columns > 1 ? "grid" : ""}`}
-          style={
-            columns
-              ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }
-              : undefined
-          }
-        >
-          {descriptor.submenu.map((child, childIndex) =>
-            renderMenuItem(child, childIndex, onSelectMenuItem),
-          )}
-        </div>
-      </section>
+      <MathMenuGroup
+        key={key}
+        id={key}
+        label={label}
+        itemsClassName={[
+          "math-menu-items",
+          columns && columns > 1 ? "grid" : "",
+          descriptor.submenuClass ?? "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        itemsStyle={
+          columns
+            ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }
+            : undefined
+        }
+      >
+        {getVisibleMenuItems(descriptor.submenu).map((child, childIndex) =>
+          renderMenuItem(child, childIndex, onSelectMenuItem, `${key}/`),
+        )}
+      </MathMenuGroup>
     );
   }
 
@@ -225,6 +240,92 @@ function renderMenuItem(
       )}
     </button>
   );
+}
+
+function MathMenuGroup({
+  id,
+  label,
+  itemsClassName,
+  itemsStyle,
+  children,
+}: {
+  id: string;
+  label: string;
+  itemsClassName: string;
+  itemsStyle?: React.CSSProperties;
+  children: React.ReactNode;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [pinnedOpen, setPinnedOpen] = useState(false);
+  const expanded = hovered || focused || pinnedOpen;
+  const submenuId = `math-submenu-${id.replace(/[^A-Za-z0-9_-]/g, "-")}`;
+
+  return (
+    <div
+      className={`math-menu-group ${expanded ? "expanded" : ""}`}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocusCapture={() => setFocused(true)}
+      onBlurCapture={(event) => {
+        const nextTarget = event.relatedTarget;
+        if (
+          nextTarget instanceof Node &&
+          event.currentTarget.contains(nextTarget)
+        )
+          return;
+        setFocused(false);
+      }}
+    >
+      <button
+        className="math-menu-group-trigger"
+        type="button"
+        aria-expanded={expanded}
+        aria-controls={submenuId}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => setPinnedOpen((open) => !open)}
+      >
+        <span>{label}</span>
+        <ChevronDown size={12} aria-hidden="true" />
+      </button>
+      <div
+        className={itemsClassName}
+        id={submenuId}
+        hidden={!expanded}
+        style={itemsStyle}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function getVisibleMenuItems(
+  items: readonly MathMenuItem[],
+): readonly MathMenuItem[] {
+  const filtered = items.filter((item) => {
+    const descriptor = item as unknown as MenuDescriptor;
+    if (descriptor.type === "divider" || descriptor.type === "heading")
+      return true;
+    if (!(resolveValue(descriptor.visible) ?? true)) return false;
+    return (
+      !descriptor.submenu || getVisibleMenuItems(descriptor.submenu).length > 0
+    );
+  });
+
+  return filtered.filter((item, index) => {
+    const descriptor = item as unknown as MenuDescriptor;
+    if (descriptor.type !== "divider") return true;
+    const previous = filtered[index - 1] as unknown as
+      MenuDescriptor | undefined;
+    const next = filtered[index + 1] as unknown as MenuDescriptor | undefined;
+    return (
+      index > 0 &&
+      index < filtered.length - 1 &&
+      previous?.type !== "divider" &&
+      next?.type !== "divider"
+    );
+  });
 }
 
 function resolveValue<T>(
