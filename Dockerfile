@@ -31,7 +31,10 @@ USER forma
 EXPOSE 3000
 CMD ["node", "server.js"]
     
-FROM runner AS migrator
-COPY --from=builder --chown=forma:forma /app/server/database/migrations ./server/database/migrations
-COPY --chown=forma:forma scripts/migrate-production.mjs ./scripts/migrate-production.mjs
+FROM base AS migrator
+ENV NODE_ENV=production
+RUN npm prune --omit=dev
+COPY --chown=node:node server/database/migrations ./server/database/migrations
+COPY --chown=node:node scripts/migrate-production.mjs ./scripts/migrate-production.mjs
+USER node
 CMD ["node", "scripts/migrate-production.mjs"]

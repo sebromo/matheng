@@ -13,11 +13,21 @@ function required(name) {
 }
 
 const databaseUrl = required("DATABASE_URL");
-required("POSTGRES_PASSWORD");
+const databasePassword = required("POSTGRES_PASSWORD");
 const secret = required("BETTER_AUTH_SECRET");
-if (Buffer.byteLength(secret) < 32) {
-  throw new Error("BETTER_AUTH_SECRET must contain at least 32 bytes");
+for (const [name, value] of [
+  ["POSTGRES_PASSWORD", databasePassword],
+  ["BETTER_AUTH_SECRET", secret],
+]) {
+  if (/replace[-_ ]with/i.test(value)) {
+    throw new Error(`${name} still contains a placeholder value`);
+  }
+  if (Buffer.byteLength(value) < 32) {
+    throw new Error(`${name} must contain at least 32 bytes`);
+  }
 }
+if (databasePassword === secret)
+  throw new Error("POSTGRES_PASSWORD and BETTER_AUTH_SECRET must be different");
 
 const authUrl = new URL(required("BETTER_AUTH_URL"));
 const publicUrl = new URL(required("NEXT_PUBLIC_APP_URL"));

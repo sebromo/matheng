@@ -25,7 +25,6 @@ test("an authenticated user edits, saves, and reopens a calculation worksheet", 
     ),
   ).toMatchObject({
     content: {
-    await expect(page.getByText("Saved locally")).toBeVisible();
       name: "load",
       expression: { kind: "number", value: 160 },
     },
@@ -202,6 +201,7 @@ test("loading a worksheet removes previously persisted empty math regions", asyn
   page,
 }) => {
   await register(page);
+  await expect(page.getByText("Saved locally")).toBeVisible();
   const record = (await worksheetRecords(page))[0];
   const responseStatus = await page.evaluate(
     async ({ documentId, document, revision }) => {
@@ -341,6 +341,7 @@ test("math fields align to the click point and the toolbox owns the virtual keyb
   await expect
     .poll(async () => (await field.boundingBox())?.width ?? 0)
     .toBeGreaterThan(initialBox.width);
+  const longExpressionBox = await field.boundingBox();
   expect(longExpressionBox).not.toBeNull();
 
   await field.evaluate((element) => {

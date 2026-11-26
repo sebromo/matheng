@@ -9,6 +9,7 @@ import { EditorStateStore } from "../../editor/state/editor-state";
 import { CalculationStateStore } from "../state/calculation-state";
 import { starterDocument } from "../model/starter-document";
 import { loadLocalRecovery, saveLocalRecovery } from "../state/recovery";
+import { createUuid } from "../uuid";
 
 type PendingSave = { requestId: string; revision: number; document: string };
 
@@ -46,7 +47,7 @@ export function useWorksheetSession({
   );
   const [retryCount, setRetryCount] = useState(0);
   const [lastSaved, setLastSaved] = useState("");
-  const initialWorksheetId = useRef(crypto.randomUUID());
+  const initialWorksheetId = useRef(createUuid());
   const lastSyncedDocument = useRef<string | null>(null);
   const pendingSave = useRef<PendingSave | null>(null);
   const saving = useRef(false);
@@ -206,7 +207,7 @@ export function useWorksheetSession({
         pendingSave.current.document === serialized
           ? pendingSave.current
           : {
-              requestId: crypto.randomUUID(),
+              requestId: createUuid(),
               revision: baseRevision,
               document: serialized,
             };
@@ -268,7 +269,7 @@ export function useWorksheetSession({
 
     saving.current = true;
     const request = {
-      requestId: crypto.randomUUID(),
+      requestId: createUuid(),
       revision: baseRevision,
       document: serialized,
     };
@@ -333,7 +334,7 @@ export function useWorksheetSession({
     try {
       const created = await createServerWorksheet({
         ...starterDocument,
-        id: crypto.randomUUID(),
+        id: createUuid(),
         title: "Untitled worksheet",
       });
       setWorksheets((current) => [
@@ -375,7 +376,7 @@ export function useWorksheetSession({
   async function saveRecoveredCopy() {
     const recovered = {
       ...document,
-      id: crypto.randomUUID(),
+      id: createUuid(),
       title: `${document.title} (recovered copy)`.slice(0, 160),
     };
     try {
@@ -459,7 +460,7 @@ async function createServerWorksheet(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Request-Id": crypto.randomUUID(),
+      "X-Request-Id": createUuid(),
     },
     body: JSON.stringify({ document }),
   });

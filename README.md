@@ -2,15 +2,34 @@
 
 Forma is a browser-first, document-centered engineering worksheet foundation. It keeps worksheets as spatial documents with independently positioned math and text regions; it is not a vertically stacked code notebook. The current implementation is an architectural foundation, not Mathcad/SMath feature parity.
 
-## Run locally
+## Self-hosting
 
-Requirements: Docker Engine with Compose. Start the app and PostgreSQL:
+The default Compose configuration is the production standalone deployment. Requirements: Docker Engine and Docker Compose. Create a production environment file:
 
 ```sh
-docker compose up --build
+cp .env.production.example .env
+openssl rand -hex 32
 ```
 
-Open http://localhost:3000 and create an account. Compose applies checked-in Drizzle migrations before starting Next.js. The Compose database password and auth secret are development-only defaults.
+Generate two different secrets and replace the `POSTGRES_PASSWORD` and `BETTER_AUTH_SECRET` placeholders in `.env`. Set `BETTER_AUTH_URL` and `NEXT_PUBLIC_APP_URL` to the same public HTTPS origin. `APP_PORT` selects the host port for the app; PostgreSQL is not published outside the Compose network. Start Forma with:
+
+```sh
+docker compose up -d
+```
+
+Compose builds the Dockerfile's `runner` target. A non-exposed one-shot migration service waits for PostgreSQL, validates production configuration, serializes concurrent migration runs with a PostgreSQL advisory lock, and must complete successfully before the web app starts. Terminate TLS at a trusted reverse proxy and forward traffic to the published app port. Check `docker compose ps` and `docker compose logs migrate app` after startup. User data persists in the PostgreSQL volume.
+
+For an existing database created by the previous development Compose setup, its persisted PostgreSQL role still has the old development password; changing `POSTGRES_PASSWORD` in `.env` does not rotate credentials in an existing volume. Back up the database and rotate the role password inside PostgreSQL before using a new production password with that volume. Do not use development credentials in production.
+
+## Development
+
+Development is an explicit opt-in. It uses `next dev`, source bind mounts, and named dependency/cache volumes:
+
+```sh
+docker compose -f compose.yaml -f compose.dev.yaml up -d
+```
+
+This override uses development-only credentials and publishes PostgreSQL for local tools. Never use these credentials outside development.
 
 For host-based commands, install dependencies with `npm ci` and configure `DATABASE_URL`, `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET`, and `NEXT_PUBLIC_APP_URL` from `.env.example`. Never reuse the example secret outside local development.
 

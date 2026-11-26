@@ -18,6 +18,7 @@ import { authClient } from "../../auth/auth-client";
 import { starterDocument } from "../model/starter-document";
 import { CalculationStateStore } from "../state/calculation-state";
 import { useWorksheetSession } from "../hooks/use-worksheet-session";
+import { createUuid } from "../uuid";
 import { WorksheetCanvas } from "./worksheet-canvas";
 import { WorksheetConflictBanner } from "./worksheet-conflict-banner";
 import { WorksheetHeader } from "./worksheet-header";
@@ -119,7 +120,7 @@ export function WorksheetWorkspace({ userId }: { userId: string }) {
   ) {
     discardEmptyMathRegions();
     const currentDocument = history.getSnapshot().document;
-    const regionId = `region-${crypto.randomUUID()}`;
+    const regionId = `region-${createUuid()}`;
     const region: WorksheetRegion =
       type === "math"
         ? {
