@@ -1,0 +1,965 @@
+:root {
+  --paper: #fff;
+  --work-surface: #e8e9e5;
+  --ink: #20231f;
+  --muted: #8c9088;
+  --line: #dedfd9;
+  --line-dark: #c9cbc4;
+  --accent: #bd4d35;
+  --green: #315a42;
+  --display: "Newsreader", Georgia, serif;
+  --ui: "DM Sans", "Trebuchet MS", sans-serif;
+  --mono: "DM Mono", "Courier New", monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+}
+body {
+  color: var(--ink);
+  background: var(--work-surface);
+  font-family: var(--ui);
+  font-size: 13px;
+}
+button,
+input,
+textarea {
+  font: inherit;
+}
+button {
+  color: inherit;
+}
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #bd4d3580;
+  outline-offset: 2px;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.sync-conflict {
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 18px;
+  border-bottom: 1px solid #d5b887;
+  background: #fff7e8;
+  color: #574322;
+  font-size: 11px;
+}
+.sync-conflict div {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+}
+.sync-conflict strong {
+  font-size: 11px;
+}
+.sync-conflict span {
+  color: #78633d;
+}
+.sync-conflict button {
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px solid #d8c49e;
+  border-radius: 2px;
+  background: #fffdf8;
+  color: #584526;
+  font-size: 10px;
+  cursor: pointer;
+}
+.sync-conflict button:hover {
+  background: white;
+  border-color: #bca372;
+}
+.topbar {
+  z-index: 2;
+  height: 48px;
+  flex: 0 0 48px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line-dark);
+  background: #f9f9f7;
+}
+.brand-lockup,
+.topbar-actions,
+.save-indicator,
+.topbar-button {
+  display: flex;
+  align-items: center;
+}
+.brand-lockup {
+  min-width: 0;
+  gap: 10px;
+}
+.brand-mark {
+  width: 23px;
+  height: 23px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  background: var(--accent);
+  color: white;
+  font-family: var(--display);
+  font-size: 19px;
+  font-style: italic;
+}
+.brand-name {
+  font-family: var(--display);
+  font-size: 19px;
+  font-weight: 600;
+}
+.brand-divider {
+  width: 1px;
+  height: 19px;
+  margin: 0 2px;
+  background: var(--line-dark);
+}
+.document-name {
+  width: min(330px, 30vw);
+  min-width: 100px;
+  padding: 5px 7px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: #555950;
+  font-size: 11px;
+}
+.worksheet-picker {
+  max-width: 170px;
+  min-width: 90px;
+  padding: 5px 6px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  color: #555950;
+  font-size: 10px;
+}
+.worksheet-picker:hover,
+.worksheet-picker:focus {
+  border-color: var(--line);
+  background: white;
+}
+.worksheet-picker:disabled {
+  opacity: 0.6;
+}
+.document-name:hover,
+.document-name:focus {
+  border-color: var(--line);
+  background: white;
+}
+.save-indicator {
+  gap: 7px;
+  color: #777c73;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.save-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #5b8b68;
+}
+.save-dot.pending {
+  background: #c7923f;
+}
+.saved-time {
+  margin-left: 4px;
+  color: #9da098;
+  font-family: var(--mono);
+  font-size: 9px;
+}
+.topbar-actions {
+  justify-content: flex-end;
+  gap: 5px;
+}
+.topbar-button {
+  height: 29px;
+  gap: 6px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: #62675e;
+  font-size: 10px;
+  cursor: pointer;
+}
+.topbar-button:hover {
+  border-color: var(--line);
+  background: white;
+}
+
+.workspace {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 188px;
+}
+.editor-scroll {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 22px 26px 40px;
+  background: var(--work-surface);
+}
+.worksheet-page {
+  position: relative;
+  width: min(100%, 820px);
+  height: 1160px;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid #c9cbc5;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(to right, #d7dad4 1px, transparent 1px),
+    linear-gradient(to bottom, #d7dad4 1px, transparent 1px),
+    linear-gradient(to right, #e8eae6 1px, transparent 1px),
+    linear-gradient(to bottom, #e8eae6 1px, transparent 1px);
+  background-size:
+    85px 85px,
+    85px 85px,
+    17px 17px,
+    17px 17px;
+  box-shadow: 0 3px 12px #24282012;
+  cursor: text;
+  animation: page-arrive 0.35s ease both;
+}
+@keyframes page-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.worksheet-region {
+  position: absolute;
+  z-index: 1;
+  width: max-content;
+  max-width: calc(100% - 14px);
+  min-height: 22px;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 2px;
+}
+.worksheet-region.text-region {
+  width: min(680px, calc(100% - 20px));
+}
+.worksheet-region.active {
+  z-index: 2;
+  border-color: #b7c4b8;
+  background: #ffffffbd;
+  box-shadow: 0 1px 3px #34423712;
+}
+.region-grip {
+  position: absolute;
+  top: 2px;
+  left: -14px;
+  width: 12px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #a4aaa1;
+  opacity: 0;
+  cursor: grab;
+  touch-action: none;
+}
+.region-grip:active {
+  cursor: grabbing;
+}
+.worksheet-region.active .region-grip {
+  opacity: 1;
+}
+.region-grip:focus-visible,
+.delete-region:focus-visible {
+  opacity: 1;
+}
+.math-input {
+  width: min(410px, 65%);
+  min-width: 55px;
+  padding: 3px 1px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #151a16;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+.math-input:focus {
+  outline: 0;
+}
+.math-input::placeholder {
+  color: #afb4ac;
+  font-family: var(--ui);
+  font-size: 11px;
+}
+.definition-input {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  bottom: calc(100% + 1px);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: #68746a;
+  font-family: var(--mono);
+  font-size: 10px;
+}
+.definition-input:not(.has-definition) {
+  visibility: hidden;
+}
+.worksheet-region.active .definition-input:not(.has-definition) {
+  visibility: visible;
+}
+.definition-input input {
+  width: 44px;
+  min-width: 24px;
+  padding: 2px 1px;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  outline: 0;
+  background: transparent;
+  color: #315a42;
+  font-family: var(--mono);
+  font-size: 10px;
+}
+.definition-input input:focus {
+  border-bottom-color: #a7b3a5;
+}
+.definition-input input::placeholder {
+  color: #b4b8b1;
+}
+.math-editor-shell {
+  position: relative;
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  align-items: flex-start;
+  width: max-content;
+  min-width: 12px;
+  max-width: min(680px, calc(100vw - 32px));
+}
+.mathlive-host {
+  width: max-content;
+  min-width: 12px;
+  max-width: 100%;
+  min-height: 18px;
+}
+.mathlive-host math-field {
+  display: inline-block;
+  min-width: 12px;
+  width: max-content;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #151a16;
+  font-size: 15px;
+  --hue: 12;
+  --primary: #bd4d35;
+}
+.mathlive-host math-field:focus {
+  outline: 0;
+}
+.mathlive-host math-field:focus-visible {
+  outline: 2px solid #bd4d3580;
+  outline-offset: 2px;
+}
+.mathlive-host math-field::part(virtual-keyboard-toggle),
+.mathlive-host math-field::part(menu-toggle) {
+  display: none !important;
+}
+.math-editor-toolbar {
+  min-height: 18px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 1px;
+}
+.math-editor-toolbar button {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  color: #9c4b38;
+  cursor: pointer;
+}
+.math-editor-toolbar button:hover {
+  border-color: var(--line);
+  background: white;
+}
+.math-editor-toolbar button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.math-editor-shell .inline-error {
+  z-index: 2;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+.equals-sign {
+  padding: 0 3px;
+  color: #313a33;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+.inline-result {
+  color: #174ca2;
+  font-family: var(--mono);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.text-input {
+  width: 100%;
+  min-height: 25px;
+  padding: 3px 1px;
+  resize: none;
+  overflow: hidden;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #333730;
+  font-family: var(--ui);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.text-input:focus {
+  outline: 0;
+}
+.text-input::placeholder {
+  color: #adb1a9;
+}
+.heading-region .text-input {
+  color: #171b17;
+  font-size: 17px;
+  font-weight: 700;
+}
+.delete-region {
+  position: absolute;
+  top: 50%;
+  right: -25px;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: #fff;
+  color: #92978d;
+  opacity: 0;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+.worksheet-region:hover .delete-region,
+.worksheet-region.active .delete-region {
+  opacity: 1;
+}
+.delete-region:hover {
+  color: var(--accent);
+}
+.inline-error {
+  position: absolute;
+  top: calc(100% + 1px);
+  left: 22px;
+  max-width: 95%;
+  overflow: hidden;
+  color: #ad432f;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.has-error {
+  border-color: #e4b7aa;
+  background: #fff9f6;
+}
+
+.toolbox {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow-y: auto;
+  border-left: 1px solid var(--line-dark);
+  background: #f6f7f4;
+}
+.toolbox-heading {
+  padding: 13px 12px 10px;
+  border-bottom: 1px solid var(--line);
+  color: #73786f;
+  font-family: var(--mono);
+  font-size: 9px;
+}
+.region-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.region-tool {
+  min-width: 0;
+  min-height: 31px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: #565c53;
+  text-align: left;
+  font-size: 9px;
+  cursor: pointer;
+}
+.region-tool:hover {
+  border-color: var(--line);
+  background: white;
+}
+.region-tool:first-child svg {
+  color: var(--accent);
+}
+.region-tool:last-child svg {
+  color: #537662;
+}
+.region-tool:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.math-keyboard-host {
+  position: relative;
+  flex: 0 0 205px;
+  height: 205px;
+  min-height: 205px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line);
+  --keycap-height: 32px;
+  --keycap-gap: 3px;
+  --keycap-font-size: 14px;
+  --keyboard-padding-horizontal: 6px;
+  --keyboard-padding-vertical: 5px;
+}
+.math-keyboard-host > .ML__keyboard {
+  width: 100%;
+  height: 100%;
+}
+.math-menu-panel {
+  display: grid;
+  gap: 7px;
+  padding: 10px 8px 14px;
+}
+.math-menu-panel > h2 {
+  margin: 0;
+  color: #787d73;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 400;
+}
+.math-menu-group {
+  display: grid;
+  gap: 4px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.math-menu-group > h3,
+.math-menu-heading {
+  margin: 0;
+  color: #73786f;
+  font-family: var(--mono);
+  font-size: 8px;
+  font-weight: 400;
+}
+.math-menu-items {
+  display: grid;
+  gap: 2px;
+}
+.math-menu-items.grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.math-menu-item {
+  min-width: 0;
+  min-height: 23px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 2px 5px;
+  border: 1px solid #e1e3dc;
+  border-radius: 2px;
+  background: #fff;
+  color: #4a5047;
+  text-align: left;
+  font-size: 9px;
+  cursor: pointer;
+}
+.math-menu-items.grid .math-menu-item {
+  justify-content: center;
+  padding: 2px;
+  font-size: 11px;
+}
+.math-menu-item:hover:not(:disabled) {
+  border-color: #a9b5a8;
+  background: #eef2eb;
+}
+.math-menu-item:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+.math-menu-item kbd {
+  flex: 0 0 auto;
+  color: #9da098;
+  font-family: var(--mono);
+  font-size: 7px;
+}
+.math-menu-divider {
+  height: 1px;
+  background: var(--line);
+}
+.toolbox-footer {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin: auto 11px 12px;
+  padding-top: 12px;
+  color: #898d84;
+  font-size: 9px;
+  line-height: 1.5;
+}
+.toolbox-footer svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+.topbar-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.auth-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(320px, 480px) minmax(0, 1fr);
+  background: #f0f1ec;
+}
+.auth-panel {
+  width: min(100%, 390px);
+  align-self: center;
+  justify-self: center;
+  padding: 42px 28px;
+}
+.auth-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: inherit;
+  text-decoration: none;
+}
+.auth-kicker {
+  margin: 45px 0 9px;
+  color: #7a8075;
+  font-family: var(--mono);
+  font-size: 9px;
+}
+.auth-panel h1 {
+  margin: 0 0 25px;
+  font-family: var(--display);
+  font-size: 32px;
+  font-weight: 500;
+}
+.auth-panel form {
+  display: grid;
+  gap: 15px;
+}
+.auth-panel label {
+  display: grid;
+  gap: 6px;
+  color: #555b52;
+  font-size: 11px;
+}
+.auth-panel input {
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid #d5d8d0;
+  border-radius: 2px;
+  background: #fff;
+  color: var(--ink);
+}
+.auth-panel form > button {
+  height: 38px;
+  margin-top: 5px;
+  border: 0;
+  border-radius: 2px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.auth-panel form > button:hover {
+  background: #a7432f;
+}
+.auth-panel form > button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.auth-switch {
+  margin-top: 17px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #536956;
+  font-size: 10px;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.auth-error {
+  margin: 0;
+  color: #a53d2b;
+  font-size: 10px;
+}
+.auth-paper {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  overflow: hidden;
+  background-color: #dce5da;
+  background-image:
+    linear-gradient(to right, #cbd6c9 1px, transparent 1px),
+    linear-gradient(to bottom, #cbd6c9 1px, transparent 1px);
+  background-size: 28px 28px;
+  color: #335540;
+  font-family: var(--display);
+  font-size: 50px;
+}
+.auth-fraction {
+  display: inline-grid;
+  justify-items: center;
+  font-style: italic;
+}
+.auth-fraction small {
+  width: 100%;
+  margin-top: 4px;
+  padding-top: 5px;
+  border-top: 2px solid currentColor;
+  text-align: center;
+  font-size: 28px;
+}
+.auth-paper i {
+  position: absolute;
+  width: min(48vw, 540px);
+  height: 1px;
+  background: #73917a80;
+  transform: rotate(-24deg);
+}
+
+@media (max-width: 850px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr) 160px;
+  }
+  .editor-scroll {
+    padding: 15px;
+  }
+  .worksheet-page {
+    height: 1080px;
+  }
+  .topbar {
+    gap: 8px;
+    padding: 0 9px;
+  }
+}
+
+@media (max-width: 620px) {
+  .sync-conflict {
+    align-items: stretch;
+    flex-wrap: wrap;
+    padding: 8px;
+  }
+  .sync-conflict div {
+    flex-basis: 100%;
+  }
+  .sync-conflict button {
+    flex: 1;
+  }
+  .topbar {
+    height: 44px;
+    flex-basis: 44px;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .brand-divider,
+  .save-indicator,
+  .topbar-button span {
+    display: none;
+  }
+  .brand-lockup {
+    gap: 7px;
+  }
+  .brand-name {
+    font-size: 17px;
+  }
+  .document-name {
+    width: min(43vw, 190px);
+    min-width: 70px;
+    font-size: 10px;
+  }
+  .worksheet-picker {
+    display: none;
+  }
+  .topbar-actions {
+    gap: 2px;
+  }
+  .topbar-button {
+    width: 30px;
+    justify-content: center;
+    padding: 0;
+  }
+  .workspace {
+    display: flex;
+    flex-direction: column;
+  }
+  .toolbox {
+    order: -1;
+    max-height: 46vh;
+    min-height: 220px;
+    flex: 0 0 auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--line-dark);
+    border-left: 0;
+  }
+  .toolbox-heading,
+  .toolbox-footer {
+    display: none;
+  }
+  .region-actions {
+    flex: 0 0 auto;
+    gap: 3px;
+    padding: 5px;
+    border-bottom: 1px solid var(--line);
+  }
+  .region-tool {
+    min-height: 28px;
+    gap: 3px;
+    padding: 0 3px;
+    font-size: 8px;
+  }
+  .math-keyboard-host {
+    flex-basis: 205px;
+    height: 205px;
+    min-height: 205px;
+  }
+  .math-menu-panel {
+    padding-right: 5px;
+    padding-left: 5px;
+  }
+  .math-menu-item {
+    font-size: 8px;
+  }
+  .editor-scroll {
+    flex: 1;
+    padding: 10px 7px 20px;
+  }
+  .worksheet-page {
+    width: 100%;
+    height: 1000px;
+  }
+  .worksheet-region {
+    max-width: calc(100% - 12px);
+    gap: 3px;
+  }
+  .worksheet-region.text-region {
+    width: calc(100% - 20px);
+  }
+  .region-grip {
+    left: -11px;
+  }
+  .math-input {
+    width: 62%;
+    font-size: 11px;
+  }
+  .definition-input {
+    gap: 2px;
+    font-size: 9px;
+  }
+  .definition-input input {
+    width: 38px;
+    font-size: 9px;
+  }
+  .math-editor-shell {
+    min-width: 12px;
+    max-width: calc(100vw - 20px);
+    flex-basis: auto;
+  }
+  .mathlive-host math-field {
+    font-size: 13px;
+  }
+  .inline-result,
+  .equals-sign {
+    font-size: 11px;
+  }
+  .text-input {
+    font-size: 11px;
+  }
+  .heading-region .text-input {
+    font-size: 15px;
+  }
+  .delete-region {
+    right: 0;
+    z-index: 3;
+    background: #fffffff0;
+  }
+  .auth-shell {
+    display: block;
+    min-height: 100vh;
+  }
+  .auth-panel {
+    width: min(100%, 390px);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 28px 24px;
+  }
+  .auth-kicker {
+    margin-top: 38px;
+  }
+  .auth-paper {
+    display: none;
+  }
+}

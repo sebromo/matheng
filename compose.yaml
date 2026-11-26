@@ -1,0 +1,71 @@
+services:
+  database:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-forma}
+      POSTGRES_USER: ${POSTGRES_USER:-forma}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+    volumes:
+      - forma-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: .
+      target: migrator
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-}
+    environment:
+      DATABASE_URL: "postgres://${POSTGRES_USER:-forma}:${POSTGRES_PASSWORD:-}@database:5432/${POSTGRES_DB:-forma}"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-}
+    depends_on:
+      database:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      target: runner
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-}
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+      DATABASE_URL: "postgres://${POSTGRES_USER:-forma}:${POSTGRES_PASSWORD:-}@database:5432/${POSTGRES_DB:-forma}"
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-}
+    depends_on:
+      database:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  forma-postgres:

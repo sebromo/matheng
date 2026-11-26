@@ -1,0 +1,46 @@
+services:
+  database:
+    environment:
+      POSTGRES_DB: forma
+      POSTGRES_USER: forma
+      POSTGRES_PASSWORD: forma-local-only
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+
+  migrate:
+    build:
+      context: .
+      target: development
+    environment:
+      DATABASE_URL: postgres://forma:forma-local-only@database:5432/forma
+    volumes:
+      - .:/app
+      - forma-node-modules:/app/node_modules
+    command: ["npm", "run", "db:migrate"]
+
+  app:
+    build:
+      context: .
+      target: development
+    environment:
+      NODE_ENV: development
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+      DATABASE_URL: postgres://forma:forma-local-only@database:5432/forma
+      BETTER_AUTH_URL: http://localhost:3000
+      BETTER_AUTH_SECRET: forma-local-development-secret-do-not-use-in-production
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+    volumes:
+      - .:/app
+      - forma-node-modules:/app/node_modules
+      - forma-next-cache:/app/.next
+    command:
+      [
+        "sh",
+        "-c",
+        "find /app/.next -mindepth 1 -maxdepth 1 -exec rm -rf {} + && npm run dev -- --hostname 0.0.0.0",
+      ]
+
+volumes:
+  forma-node-modules:
+  forma-next-cache:

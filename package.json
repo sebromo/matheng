@@ -1,0 +1,49 @@
+{
+  "name": "worksheet-studio-early",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "node scripts/start-standalone.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format:check": "prettier --check \"app/**/*.{ts,tsx}\" \"domain/**/*.{ts,tsx}\" \"features/**/*.{ts,tsx}\" \"server/**/*.{ts,tsx}\" \"shared/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\" \"scripts/**/*.mjs\" \"docs/**/*.md\" \".github/workflows/*.yml\" README.md \"*.json\" \"*.{ts,mts}\" compose.yaml",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "vitest run server/repositories/*.integration.test.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@better-auth/drizzle-adapter": "^1.7.27",
+    "better-auth": "^1.7.27",
+    "drizzle-orm": "^0.45.4",
+    "lucide-react": "^0.468.0",
+    "mathlive": "^0.111.4",
+    "next": "^15.1.6",
+    "postgres": "^4.1.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "drizzle-kit": "^0.31.11",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^15.5.29",
+    "prettier": "^3.10.1",
+    "typescript": "^5.7.2",
+    "vitest": "^5.1.1"
+  },
+  "overrides": {
+    "postcss": "^8.5.23",
+    "@esbuild-kit/core-utils": {
+      "esbuild": "^0.25.12"
+    }
+  }
+}
