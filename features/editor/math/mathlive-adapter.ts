@@ -1,7 +1,4 @@
-import type {
-  MathExpression,
-  MathStatement,
-} from "../../../domain/expressions/ast";
+import type { MathExpression } from "../../../domain/expressions/ast";
 import { parseMathStatement } from "../../../domain/expressions/parser";
 import type {
   MathEditorAdapter,
@@ -41,8 +38,9 @@ const greekNames: Record<string, string> = {
 
 export class MathLiveAdapter implements MathEditorAdapter {
   expressionFromEditorValue(value: string): MathExpression {
-    if (!value.trim()) return { kind: "empty" };
-    const statement = parseMathStatement(value);
+    const source = value.match(/^\s*(.+?)\s*=\s*$/)?.[1] ?? value;
+    if (!source.trim()) return { kind: "empty" };
+    const statement = parseMathStatement(source);
     if (statement.kind !== "expression")
       throw new SyntaxError(
         "Enter the expression separately from its variable definition",
@@ -54,40 +52,13 @@ export class MathLiveAdapter implements MathEditorAdapter {
     return toLatex(expression);
   }
 
-  statementFromEditorValue(
-    value: string,
-    deferBareIdentifier = false,
-  ): MathStatement | null {
-    const assignment =
-      value.match(/^\s*([A-Za-z_][A-Za-z_0-9]*)\s*:\s*=\s*([\s\S]*)$/) ??
-      value.match(/^\s*([A-Za-z_][A-Za-z_0-9]*)\s*:\s+([\s\S]*)$/);
-
-    if (assignment) {
-      const [, name, source] = assignment;
-      const expression = source.trim()
-        ? this.expressionFromEditorValue(source)
-        : { kind: "empty" as const };
-      return { kind: "assignment", name, expression };
-    }
-
-    if (/^\s*[A-Za-z_][A-Za-z_0-9]*\s*:\s*$/.test(value)) return null;
-    if (deferBareIdentifier && /^\s*[A-Za-z_][A-Za-z_0-9]*\s*$/.test(value))
-      return null;
-    return {
-      kind: "expression",
-      expression: this.expressionFromEditorValue(value),
-    };
-  }
-
   async mount(
     host: HTMLElement,
     expression: MathExpression,
     callbacks: MathEditorCallbacks,
-    deferBareIdentifier = false,
   ): Promise<() => void> {
     const { MathfieldElement } = await import("mathlive");
     const field = new MathfieldElement();
-    let deferIdentifier = deferBareIdentifier;
     host.replaceChildren(field);
     field.value = this.expressionToEditorValue(expression);
     field.mathVirtualKeyboardPolicy = "manual";
@@ -95,19 +66,11 @@ export class MathLiveAdapter implements MathEditorAdapter {
 
     const input = () => {
       try {
-        const statement = this.statementFromEditorValue(
-          field.getValue("ascii-math"),
-          deferIdentifier,
-        );
-        if (!statement) {
-          callbacks.onPending();
-        } else if (statement.kind === "assignment") {
-          deferIdentifier = false;
-          callbacks.onAssignment(statement.name, statement.expression);
-          field.value = this.expressionToEditorValue(statement.expression);
-        } else {
-          callbacks.onExpression(statement.expression);
-        }
+        const value = field.getValue("ascii-math");
+        const next = this.expressionFromEditorValue(value);
+        callbacks.onExpression(next);
+        if (/^\s*.+?\s*=\s*$/.test(value))
+          field.value = this.expressionToEditorValue(next);
       } catch (error) {
         callbacks.onInvalid(
           error instanceof Error
@@ -117,17 +80,6 @@ export class MathLiveAdapter implements MathEditorAdapter {
       }
     };
     const keydown = (event: KeyboardEvent) => {
-      const pendingAssignmentName =
-        event.key === " "
-          ? valueBeforeSpacedAssignment(field.getValue("ascii-math"))
-          : null;
-      if (pendingAssignmentName) {
-        event.preventDefault();
-        callbacks.onAssignment(pendingAssignmentName, { kind: "empty" });
-        field.value = "";
-        return;
-      }
-
       if (event.key === '"' && !field.getValue("ascii-math").trim()) {
         event.preventDefault();
         callbacks.onRequestText();
@@ -182,10 +134,6 @@ export class MathLiveAdapter implements MathEditorAdapter {
       field.remove();
     };
   }
-}
-
-function valueBeforeSpacedAssignment(value: string): string | null {
-  return value.match(/^\s*([A-Za-z_][A-Za-z_0-9]*)\s*:\s*$/)?.[1] ?? null;
 }
 
 function toLatex(expression: MathExpression): string {

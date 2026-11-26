@@ -334,6 +334,9 @@ textarea:focus-visible {
 .definition-input:not(.has-definition) {
   display: none;
 }
+.worksheet-region.active .definition-input:not(.has-definition) {
+  display: flex;
+}
 .definition-input input {
   width: auto;
   min-width: 1.2em;

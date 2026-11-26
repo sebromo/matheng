@@ -4,8 +4,6 @@ Forma stores supported math as a discriminated AST: numeric literals, identifier
 
 MathLive 0.111.4 (MIT) is integrated behind `MathEditorAdapter`. It provides direct structured editing, cursor movement, fractions, scripts, symbol shortcuts, selection, and virtual keyboard capabilities. The adapter consumes MathLive AsciiMath output and converts the supported subset into Forma AST. MathLive's own serialization is not authoritative, and its LaTeX is not required from students.
 
-In worksheet regions, typing an identifier followed by `:=` or a spaced `:` starts an assignment in the same MathLive field. The editor then continues with the right-hand expression while preserving the structured assignment statement.
-
 The adapter deliberately rejects unsupported editor output instead of executing or persisting opaque markup. Matrices, vectors, comparisons, arbitrary function definitions, and MathLive constructs outside the current grammar do not yet have complete AST/evaluator support. Quantity AST nodes validate and render, but are not parsed from the current input grammar or evaluated by the worksheet engine.
 
 This is a credible initial editor integration, not the complete SMath/Mathcad interaction model. Browser tests should continue to cover fraction insertion, keyboard navigation, shortcuts, and import/export as those behaviors are expanded.

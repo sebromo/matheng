@@ -233,7 +233,7 @@ test("blank math regions disappear on blur, including after clearing input", asy
   await expect(fields).toHaveCount(3);
 });
 
-test("typing an assignment delimiter converts one math field into a definition", async ({
+test("a trailing equals evaluates a previously defined variable", async ({
   page,
 }) => {
   await register(page);
@@ -242,44 +242,33 @@ test("typing an assignment delimiter converts one math field into a definition",
   if (!pageBox) return;
 
   await page.mouse.click(pageBox.x + 620, pageBox.y + 500);
-  const field = page.locator("math-field").last();
-  await expect(field).toBeFocused();
-  await field.pressSequentially("y1:=5");
+  const definitionRegion = page.locator(".worksheet-region.math-region").last();
+  await definitionRegion.locator(".definition-input input").fill("x");
+  const definitionField = page.locator("math-field").last();
+  await definitionField.pressSequentially("5");
+  await expect(
+    definitionField
+      .locator("xpath=ancestor::div[contains(@class,'math-region')]")
+      .locator(".inline-result"),
+  ).toHaveText("5");
 
-  const region = field.locator(
+  await page.mouse.click(pageBox.x + 620, pageBox.y + 540);
+  const evaluationField = page.locator("math-field").last();
+  await evaluationField.pressSequentially("x=");
+
+  const evaluationRegion = evaluationField.locator(
     "xpath=ancestor::div[contains(@class,'math-region')]",
   );
-  await expect(region.locator(".definition-input input")).toHaveValue("y1");
-  await expect(region.locator(".inline-result")).toHaveText("5");
+  await expect(evaluationRegion.locator(".inline-result")).toHaveText("5");
   await expect
     .poll(() =>
-      field.evaluate((element) =>
+      evaluationField.evaluate((element) =>
         (
           element as HTMLElement & { getValue(format: string): string }
         ).getValue("ascii-math"),
       ),
     )
-    .toBe("5");
-  await expect
-    .poll(async () => {
-      const record = (await worksheetRecords(page))[0];
-      return record?.document.regions.some(
-        (worksheetRegion) =>
-          worksheetRegion.type === "math" &&
-          worksheetRegion.content.kind === "assignment" &&
-          worksheetRegion.content.name === "y1" &&
-          worksheetRegion.content.expression.kind === "number" &&
-          worksheetRegion.content.expression.value === 5,
-      );
-    })
-    .toBe(true);
-
-  await page.reload();
-  const persistedRegion = page.locator(".worksheet-region.math-region").last();
-  await expect(persistedRegion.locator(".definition-input input")).toHaveValue(
-    "y1",
-  );
-  await expect(persistedRegion.locator(".inline-result")).toHaveText("5");
+    .toBe("x");
 });
 
 test("loading a worksheet removes previously persisted empty math regions", async ({
@@ -365,7 +354,10 @@ test("math fields align to the click point and the toolbox owns the virtual keyb
 
   const field = page.locator("math-field").nth(3);
   await expect(field).toBeFocused();
-  await expect(page.locator(".definition-input")).toHaveCount(3);
+  await expect(page.locator(".definition-input")).toHaveCount(4);
+  await expect(
+    page.locator(".definition-input").last().locator("input"),
+  ).toHaveAttribute("placeholder", "x");
   const initialBox = await field.boundingBox();
   expect(initialBox).not.toBeNull();
   if (!initialBox) return;
