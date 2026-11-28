@@ -24,6 +24,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
+RUN rm -rf /usr/local/lib/node_modules/npm \
+  && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 RUN addgroup -S -g 1001 forma && adduser -S -u 1001 -G forma forma
 COPY --from=builder --chown=forma:forma /app/.next/standalone ./
 COPY --from=builder --chown=forma:forma /app/.next/static ./.next/static
