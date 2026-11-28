@@ -46,7 +46,7 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: docker build -t forma:ci .
-      - uses: aquasecurity/trivy-action@master
+      - uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: forma:ci
           format: table
